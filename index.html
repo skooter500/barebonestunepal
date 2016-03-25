@@ -1,0 +1,104 @@
+<html>
+<head></head>
+<body>
+<button id='record'>Record</button>
+<div id='recorderStatus'>123</div>
+<div id='progress'></div>
+<div id='recordTime'></div>
+<div id='transcription'></div>
+Response:<br/>
+<textarea id='response' rows ='10' cols= '80'></textarea>
+
+<script src='http://code.jquery.com/jquery-2.2.2.min.js'></script>
+<script src="Configlib.js"></script>
+<script src="Recorderlib.js"></script>
+<script>
+var Config = app$scripts$Config$es6lib$$default;
+var Recorder = app$scripts$pages$record$Recorder$es6lib$$Recorder;
+
+var record = document.querySelector('#record');
+var recorderStatus = document.querySelector('#recorderStatus');
+var progress = document.querySelector('#progress');
+var recordTime = document.querySelector('#recordTime');
+var transcription = document.querySelector('#transcription');
+var response = document.querySelector('#response');
+
+recordTime.innerHTML = Config.sampleTime;
+
+var recorder = new Recorder(Config, Config.audioContext);
+
+record.onclick = onRecordClicked;
+function onRecordClicked() {
+  switch (recorder.status) {
+    case Recorder.Status.STOPPED:
+    case Recorder.Status.ANALYSIS_SUCCEEDED:
+      recorder.initAsync().then(function () {
+        recorder.start();
+      });
+      break;
+    case Recorder.Status.RECORDING:
+      recorder.stop();
+      break;
+  }
+}
+
+recorder.onTranscribed = onTranscribed;
+function onTranscribed(result) {
+  transcription.innerHTML = result.transcription;
+  var date = formatDate(new Date());
+  var url = 'http://tunepal-test.cloudapp.net/tunepal2/api/mattSearch'
+    + '?q=' + result.transcription
+    + '&sources=' + 0
+    + '&latitude=' + 0
+    + '&longitude=' + 0
+    + '&client=' + 'thesession.org'
+    + '&key_sigs=' + 'all'
+    + '&local_tstamp=' + date;
+  $.get(url, function(data) {
+    console.log(JSON.stringify(data));
+    response.innerHTML = JSON.stringify(data);
+  });
+}
+
+window.requestAnimationFrame(update);
+function update() {
+  var statusText = getRecorderStatusText();
+  recorderStatus.innerHTML = statusText;
+  var progressMessage = (isNaN(recorder.progress) ? "0" : Math.round(recorder.progress * 100)) + " %";
+  progress.innerHTML = progressMessage;
+  window.requestAnimationFrame(update);
+};
+
+function getRecorderStatusText() {
+  switch (recorder.status) {
+    case Recorder.Status.STOPPED:
+      return 'TAP TO RECORD';
+    case Recorder.Status.INIT:
+      return 'ACCESSING THE MICROPHONE...';
+    case Recorder.Status.INIT_SUCCEEDED:
+      return 'SUCCEEDED';
+    case Recorder.Status.INIT_FAILED:
+      return 'ERROR: CANNOT ACCESS THE MICROPHONE';
+    case Recorder.Status.RECORDING:
+      return 'RECORDING...';
+    case Recorder.Status.ANALYZING:
+      return 'ANALYSING... (' + (recorder.analysisProgress * 100).toFixed(2) + ' %)';
+    case Recorder.Status.ANALYSIS_SUCCEEDED:
+      return 'SUCCEEDED';
+  }
+}
+
+function formatDate(timestamp) {
+  var year = timestamp.getFullYear();
+  var month = timestamp.getMonth() + 1;
+  var day = timestamp.getDate();
+  var hours = timestamp.getHours();
+  var minutes = timestamp.getMinutes();
+  var seconds = timestamp.getSeconds();
+  return year + "-" + month + "-" + day + "%20"
+      + hours + "%3A" + minutes + "%3A" + seconds;
+};
+
+</script>
+</body>
+</html>
